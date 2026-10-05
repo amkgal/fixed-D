@@ -1,0 +1,6 @@
+{
+  "name": "SingDeposit - MAS Fixed Deposit Calculator",
+  "description": "Singapore Fixed Deposit Calculator calibrated with MAS Interest Rates of Banks and Finance Companies yearly statistical benchmarks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
