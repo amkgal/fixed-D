@@ -95,43 +95,38 @@ export const BackendIntegrationModal: React.FC<BackendIntegrationModalProps> = (
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const sampleExpressCode = `// Node.js Express Route Example: MAS Backend Integration
-// Route: GET /api/mas/interest-rates/yearly
+  const sampleServerlessCode = `// Serverless Connection: /api/fixedd.ts
+// Root level /api folder
+// Target: https://eservices.mas.gov.sg/apimg-gw/server/monthly_statistical_bulletin_non610ora/interest_rates_of_banks_and_finance_companies_yearly
+// Header required: KeyId: <MAS_KEY_ID>
 
-import express from 'express';
-const router = express.Router();
+import type { Request, Response } from 'express';
 
-// Option A: Proxy directly to MAS Datastore API (Table I.1)
-router.get('/api/mas/interest-rates/yearly', async (req, res) => {
-  try {
-    const masDatastoreUrl = 'https://eservices.mas.gov.sg/api/action/datastore/search.json?resource_id=5f2b8b3b-8296-477a-94c6-ce3ff3ded0c3&limit=50';
-    
-    const response = await fetch(masDatastoreUrl);
-    const data = await response.json();
+const MAS_YEARLY_ENDPOINT =
+  'https://eservices.mas.gov.sg/apimg-gw/server/monthly_statistical_bulletin_non610ora/interest_rates_of_banks_and_finance_companies_yearly';
 
-    // Map records to SingDeposit contract
-    const records = (data.result?.records || []).map((row) => ({
-      year: parseInt(row.end_of_year || row.year || '2024'),
-      period: row.end_of_year || row.year,
-      bank_fixed_dep_1m: parseFloat(row.banks_fixed_deposits_1_mth || 2.45),
-      bank_fixed_dep_3m: parseFloat(row.banks_fixed_deposits_3_mth || 2.70),
-      bank_fixed_dep_6m: parseFloat(row.banks_fixed_deposits_6_mth || 2.85),
-      bank_fixed_dep_12m: parseFloat(row.banks_fixed_deposits_12_mth || 2.95),
-      bank_savings_dep: parseFloat(row.banks_savings_deposits || 0.18),
-      bank_prime_lending: parseFloat(row.prime_lending_rate || 5.25),
-      finance_fixed_dep_3m: parseFloat(row.fc_fixed_deposits_3_mth || 2.90),
-      finance_fixed_dep_6m: parseFloat(row.fc_fixed_deposits_6_mth || 3.10),
-      finance_fixed_dep_12m: parseFloat(row.fc_fixed_deposits_12_mth || 3.25),
-      finance_savings_dep: parseFloat(row.fc_savings_deposits || 0.25)
-    }));
+export default async function handler(req: Request | any, res?: Response | any) {
+  const masKeyId = process.env.MAS_KEY_ID || req.headers?.['keyid'];
 
-    res.json({ success: true, count: records.length, records });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+  if (!masKeyId) {
+    return res.status(401).json({
+      success: false,
+      error: 'MAS_KEY_ID_NOT_CONFIGURED',
+      message: 'MAS_KEY_ID missing in environment variables (.env)'
+    });
   }
-});
 
-export default router;`;
+  const masResponse = await fetch(MAS_YEARLY_ENDPOINT, {
+    method: 'GET',
+    headers: {
+      KeyId: String(masKeyId).trim(),
+      Accept: 'application/json'
+    }
+  });
+
+  const data = await masResponse.json();
+  return res.status(200).json({ success: true, ...data });
+}`;
 
   const sampleContractSchema = `{
   "success": true,
@@ -212,7 +207,7 @@ export default router;`;
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            Sample Express Route
+            Serverless Function (/api/fixedd.ts)
           </button>
         </div>
 
@@ -228,7 +223,7 @@ export default router;`;
                       Connect to Live Custom Backend
                     </span>
                     <span className="text-slate-500 text-[11px]">
-                      Toggle ON when your backend server is up. Toggle OFF to use bundled MAS statistical dataset.
+                      Toggle ON to pull live from /api/fixedd. Toggle OFF to use bundled MAS statistical dataset.
                     </span>
                   </div>
                   <button
@@ -264,19 +259,19 @@ export default router;`;
                     onChange={(e) =>
                       setLocalConfig((prev) => ({ ...prev, endpointUrl: e.target.value }))
                     }
-                    placeholder="/api/mas/interest-rates/yearly or http://localhost:5000/api/mas-rates"
+                    placeholder="/api/fixedd"
                     className="w-full font-mono text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-rose-500 focus:outline-none"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Tip: You can use relative paths like <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">/api/mas/interest-rates/yearly</code> or full local URLs.
+                  Default: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">/api/fixedd</code> (Serverless endpoint in /api folder). Health check: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded">/api/health</code>.
                 </p>
               </div>
 
               {/* Optional Bearer Token */}
               <div className="space-y-1.5">
                 <label className="font-semibold text-slate-700 block">
-                  Optional Authorization Header / API Key
+                  Optional MAS KeyId / API Key (Overriding Server Environment)
                 </label>
                 <input
                   type="password"
@@ -284,7 +279,7 @@ export default router;`;
                   onChange={(e) =>
                     setLocalConfig((prev) => ({ ...prev, apiKey: e.target.value }))
                   }
-                  placeholder="Bearer token or API key if your endpoint is protected"
+                  placeholder="Leave blank to use MAS_KEY_ID from server .env"
                   className="w-full font-mono text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-rose-500 focus:outline-none"
                 />
               </div>
@@ -362,19 +357,19 @@ export default router;`;
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-slate-700">
-                  Ready-to-use Express Proxy Route:
+                  Serverless Implementation (/api/fixedd.ts):
                 </span>
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(sampleExpressCode)}
+                  onClick={() => copyToClipboard(sampleServerlessCode)}
                   className="inline-flex items-center gap-1 text-[11px] text-slate-600 hover:text-slate-900 font-medium"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copied ? 'Copied' : 'Copy Route'}</span>
+                  <span>{copied ? 'Copied' : 'Copy Serverless Code'}</span>
                 </button>
               </div>
               <pre className="p-3 bg-slate-950 text-slate-100 rounded-lg font-mono text-[11px] overflow-x-auto max-h-72">
-                {sampleExpressCode}
+                {sampleServerlessCode}
               </pre>
             </div>
           )}

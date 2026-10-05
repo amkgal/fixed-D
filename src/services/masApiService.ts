@@ -4,7 +4,7 @@ import { MasBackendConfig, MasYearlyRateRecord } from '../types/mas';
 const STORAGE_KEY_CONFIG = 'singdeposit_backend_config';
 
 export const DEFAULT_CONFIG: MasBackendConfig = {
-  endpointUrl: import.meta.env.VITE_MAS_BACKEND_URL || '/api/mas/interest-rates/yearly',
+  endpointUrl: import.meta.env.VITE_MAS_BACKEND_URL || '/api/fixedd',
   useLiveBackend: false,
 };
 
@@ -84,18 +84,19 @@ export async function fetchMasRates(config: MasBackendConfig): Promise<FetchResu
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        ...(config.apiKey ? { KeyId: config.apiKey, Authorization: `Bearer ${config.apiKey}` } : {}),
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
     const json = await response.json();
 
-    // Check if it's MAS Datastore shape (result.records) or flat array
-    const rawList = json.result?.records || json.data || (Array.isArray(json) ? json : null);
+    if (!response.ok) {
+      const errMsg = json?.message || json?.error || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errMsg);
+    }
+
+    // Check if it's normalized records, MAS Datastore shape (result.records), or flat array
+    const rawList = json.records || json.result?.records || json.data || (Array.isArray(json) ? json : null);
 
     if (!rawList) {
       throw new Error('Unexpected response format. Expected an array or { result: { records: [...] } }');
